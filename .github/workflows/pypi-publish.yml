@@ -12,7 +12,6 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - name: Checkout code
@@ -33,6 +32,8 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Confirm upload
         run: echo "✅ Successfully published package to PyPI."
