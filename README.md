@@ -3,13 +3,13 @@
 ![Async](https://img.shields.io/badge/async-supported-blue)
 ![Python](https://img.shields.io/badge/python-3.9+-green)
 
-A lightweight **Async** Python library for Google Gemini API key rotation, valid model selection, and automatic fallback to "Lite" models on server errors.
+A lightweight Python library for Google Gemini API key rotation, valid model selection, and automatic fallback to "Lite" models on server errors. Supports both **Async** and **Sync** execution.
 
 ## 🚀 Features
 
 - **✅ Automatic Key Rotation**: Seamlessly rotates through a list of API keys when quota is exhausted (`429`), permission denied (`403`), or any other API error occurs.
 - **🔄 Smart Model Fallback**: Automatically downgrades specific models (e.g., `gemini-2.0-flash` -> `gemini-2.0-flash-lite`) if server errors (`5xx`) persist.
-- **⚡ Async First**: Built on top of the `google-genai` async client for high-performance non-blocking applications.
+- **⚡ Async & Sync Support**: Built on top of the `google-genai` client, offering both `async` (`generate_content`) and `sync` (`generate_content_sync`) methods for high-performance and standard applications.
 - **🛡️ Robust Error Handling**: Implements exponential backoff before rotating keys or switching models.
 - **📝 Concise Logging**: Logs only essential success/failure information (e.g., `400 INVALID_ARGUMENT`) to keep your console clean.
 
@@ -50,9 +50,9 @@ client = GeminiRotationClient()
 ```
 
 ### Generating Content
-The `generate_content` method wraps the standard `google-genai` call but adds rotation and fallback logic.
+The library provides both asynchronous (`generate_content`) and synchronous (`generate_content_sync`) methods. Both methods wrap the standard `google-genai` calls but add rotation and fallback logic.
 
-#### 1. Basic Text Generation
+#### 1. Async Text Generation
 ```python
 import asyncio
 from gemini_rotate import GeminiRotationClient
@@ -74,7 +74,28 @@ if __name__ == "__main__":
     asyncio.run(generate_text())
 ```
 
-#### 2. Advanced: Tool Calling & Structured Output
+#### 2. Sync Text Generation
+```python
+from gemini_rotate import GeminiRotationClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def generate_text_sync():
+    client = GeminiRotationClient()
+    try:
+        response = client.generate_content_sync(
+            contents="Explain quantum computing in 50 words."
+        )
+        print(f"Generated text: {response.text}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    generate_text_sync()
+```
+
+#### 3. Advanced: Tool Calling & Structured Output (Async Example)
 You can pass `tools` and `response_schema` (or `response_mime_type`) via the `config` parameter.
 
 ```python
@@ -125,21 +146,26 @@ if __name__ == "__main__":
 
 ## ⚙️ Configuration
 
-### 1. API Keys (Required)
-Define your keys in `.env` or environment variables using the pattern `GEMINI_API_KEY_n`.
+### 1. The `.env` Format (Expected)
+To configure the library, create a `.env` file in the root of your project. The library expects the following format:
 
 ```env
-GEMINI_API_KEY_1="key_one..."
-GEMINI_API_KEY_2="key_two..."
-GEMINI_API_KEY_3="key_three..."
+# Required: Define your Gemini API keys using the pattern GEMINI_API_KEY_<number>
+GEMINI_API_KEY_1="AIzaSy..."
+GEMINI_API_KEY_2="AI3yhj..."
+GEMINI_API_KEY_3="AIdf56..."
+
+# Optional: Define your models in a valid JSON array format.
+# The models will be processed in pairs (Primary -> Secondary fallback).
+GEMINI_MODELS='["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]'
 ```
 
-*(Note: A single `GEMINI_API_KEY` is also supported, but using the numbered pattern allows for rotation.)*
+*(Note: A single `GEMINI_API_KEY` environment variable is also supported as a fallback, but using the numbered pattern `GEMINI_API_KEY_n` allows for rotation.)*
 
-### 2. Model Priority (Optional)
-You can customize the order in which models are attempted by setting `GEMINI_MODELS` in `.env`. The library processes models in **Primary -> Secondary** pairs.
+### 2. Model Priority Breakdown
+You can customize the order in which models are attempted by setting `GEMINI_MODELS` in `.env` as shown above. The string MUST be a valid JSON array. The library processes models in **Primary -> Secondary** pairs.
 
-**Default Behavior (if not set):**
+**Default Behavior (if GEMINI_MODELS is not set):**
 1.  `gemini-flash-latest` -> `gemini-flash-lite-latest`
 2.  `gemini-3-flash-preview` -> `gemini-2.5-flash`
 3.  `gemini-2.5-flash-lite` -> `gemini-2.0-flash`
